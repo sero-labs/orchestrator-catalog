@@ -1,5 +1,12 @@
 {
   "version": 1,
   "name": "Sero Official Loop Catalog",
-  "entries": []
+  "entries": [
+    "daily-note",
+    "weekly-research-digest",
+    "repo-hygiene-monitor",
+    "ci-fixer",
+    "issue-triage-report",
+    "inbox-to-brief"
+  ]
 }

@@ -1,0 +1,12 @@
+{
+  "slug": "issue-triage-report",
+  "name": "Issue triage & report",
+  "description": "When an issue gets the 'triage' label, it investigates — reproduces the problem, finds the code involved, judges severity and effort — and sends a short triage report to your team webhook. You approve every send before it leaves.",
+  "version": 1,
+  "connectors": ["GitHub (gh login)"],
+  "recommendedTrigger": "fires on github:issue-labelled (triage)",
+  "delivery": "webhook-post",
+  "costBand": "medium",
+  "modelTier": "MED",
+  "limitations": "Set your webhook URL in the loop's Delivery settings (or tell the installer when it asks). Every report waits for your approval before it is posted."
+}

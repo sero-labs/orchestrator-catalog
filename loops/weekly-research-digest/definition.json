@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "prompt": "Every Monday at 9am, produce a research digest for this project: identify the project's domain and main technologies from its files, find what changed or was announced in that space over the past week, pick the three most relevant items, and write a short digest explaining why each one matters to this project.",
+  "title": "Weekly research digest",
+  "summary": "One scheduled pass: inspect the project to infer its domain and technologies, research relevant announcements from the past week, select the three most relevant items, save a concise digest report, then finalize with a delivery receipt.",
+  "plan": {
+    "schemaVersion": 1,
+    "revision": 0,
+    "objective": "Produce one weekly research digest for this project covering the three most relevant changes or announcements from the past week, explaining why each matters to the project.",
+    "steps": [
+      {
+        "id": "profile-project",
+        "title": "Identify project domain and technologies",
+        "instructions": "Inspect the workspace files to infer the project's domain, product purpose, main frameworks/languages/libraries, external services, and any docs that reveal priorities. Record a concise project profile in the StepOutcome, including search keywords/topics to use for weekly research.",
+        "expectedOutcome": "A clear project profile with domain, technologies, and research keywords relevant to this repository.",
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW",
+          "tools": [
+            "ls",
+            "find",
+            "grep"
+          ],
+          "agent": "analyst"
+        }
+      },
+      {
+        "id": "research-weekly-changes",
+        "title": "Research past-week developments",
+        "instructions": "Using the project profile from the previous step, search the web for changes, releases, security advisories, standards updates, ecosystem announcements, and notable articles from the past 7 days that are relevant to the project's domain and technologies. Prefer official release notes, changelogs, vendor blogs, GitHub releases, standards bodies, and reputable technical sources. Record candidate items with title, date, source URL, short summary, and relevance rationale.",
+        "expectedOutcome": "A sourced list of recent candidate developments relevant to the project.",
+        "dependsOn": [
+          "profile-project"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "MED",
+          "tools": [
+            "web_search",
+            "fetch_content"
+          ],
+          "agent": "researcher"
+        }
+      },
+      {
+        "id": "select-and-write-digest",
+        "title": "Select top three and draft digest",
+        "instructions": "Evaluate the candidate items for recency, source credibility, direct relevance to the project's technologies/domain, likely impact, and actionability. Pick the three most relevant items. Write a short digest with: a brief project context line, the date range covered, exactly three numbered items, source links, what changed, why it matters to this project, and any suggested follow-up. Keep it concise and useful.",
+        "expectedOutcome": "A polished digest draft with exactly three relevant, cited items.",
+        "dependsOn": [
+          "research-weekly-changes"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "MED",
+          "agent": "research-analyst"
+        }
+      },
+      {
+        "id": "save-report",
+        "title": "Save digest report",
+        "instructions": "Save the final digest to one markdown file in the workspace. Use the declared delivery name 'weekly-digest' in the filename and include the current run date, for example reports/weekly-digest-YYYY-MM-DD.md. Create the reports directory if needed. Record the exact saved file path in the StepOutcome as the delivery receipt ref value.",
+        "expectedOutcome": "The digest is written to a single report file and the exact path is recorded.",
+        "dependsOn": [
+          "select-and-write-digest"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      },
+      {
+        "id": "finalize",
+        "title": "Finalize run",
+        "instructions": "Confirm the objective is met: the project was profiled, past-week developments were researched, exactly three relevant items were selected, and the digest was saved. EMIT THE COMPLETION SIGNAL in the StepOutcome with completion.status 'complete' if successful, or 'blocked' if the objective cannot be met. Include a delivery receipt whose ref is the exact saved report file path recorded by save-report.",
+        "expectedOutcome": "Run is marked complete with a saved-report receipt pointing to the digest file.",
+        "dependsOn": [
+          "save-report"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      }
+    ],
+    "globalInstructions": "This is one run of a scheduled Monday 9am loop. Do not wait, sleep, poll, schedule, or repeat. Use British English. Cite sources for research claims. Do not commit changes."
+  },
+  "triggers": [
+    {
+      "type": "cron",
+      "schedule": "0 9 * * 1"
+    }
+  ],
+  "limits": {
+    "maxAttemptsPerStep": 2,
+    "maxAttemptsTotal": 50,
+    "maxConcurrentSteps": 1,
+    "maxWallClockMs": 1800000
+  },
+  "logPolicy": {
+    "retainRuns": 20,
+    "retainArtifacts": true,
+    "maxInlineOutputBytes": 8000,
+    "retainDigests": 50
+  },
+  "delivery": {
+    "destination": "saved-artifact",
+    "params": {
+      "name": "weekly-digest"
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "prompt": "Whenever an issue in this repository is labelled triage, investigate it: try to reproduce the problem, locate the code involved, judge severity and likely effort, and send a short triage report for the team.",
+  "title": "Issue triage & report",
+  "summary": "Handle one github:issue-labelled event where an issue receives the triage label: investigate the issue, compose a short triage report, request approval, post the approved report to the configured webhook, then finalise with delivery evidence or a blocked status if not approved.",
+  "plan": {
+    "schemaVersion": 1,
+    "revision": 0,
+    "objective": "Investigate the single issue from the triggering github:issue-labelled event, assess reproduction, affected code, severity, and likely effort, then send a short approved triage report to the team webhook.",
+    "steps": [
+      {
+        "id": "investigate-issue",
+        "title": "Investigate the labelled issue",
+        "instructions": "Read the triggering event payload and confirm it is for a non-PR issue labelled exactly 'triage'. If it is not, record that no report is required and why. If it is, inspect the repository and issue context available in the workspace/GitHub tooling, gather the issue description/comments if available, try to reproduce the reported problem using the repo's normal setup/test commands where practical, locate the likely code areas involved, and assess severity plus likely implementation effort. Record clear evidence: commands run, reproduction result, relevant files/functions, suspected cause, severity, effort estimate, and confidence. Do not modify files except for temporary artefacts if absolutely necessary; clean up any temporary files.",
+        "expectedOutcome": "A concise evidence-backed investigation result is recorded, including whether this event should be reported.",
+        "produces": [
+          "shouldReport",
+          "issueNumber",
+          "issueTitle",
+          "reproductionResult",
+          "affectedCode",
+          "severity",
+          "effortEstimate",
+          "triageEvidence"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "MED",
+          "tools": [
+            "mcp",
+            "grep",
+            "find",
+            "ls"
+          ],
+          "agent": "analyst"
+        }
+      },
+      {
+        "id": "compose-report",
+        "title": "Compose triage report",
+        "instructions": "Using the investigation outcome, compose the exact short report that would be sent to the team webhook. If shouldReport is false, compose a brief internal note explaining why no webhook report should be sent and set variables.reportContent to an empty string or a clearly marked non-send note. If shouldReport is true, keep the report concise and include: issue number/title, reproduction status, likely affected code, severity, likely effort, confidence, and recommended next action. Record the exact text/payload to send in variables.reportContent.",
+        "expectedOutcome": "The exact webhook report content is prepared and recorded.",
+        "dependsOn": [
+          "investigate-issue"
+        ],
+        "produces": [
+          "reportContent"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      },
+      {
+        "id": "approve-report",
+        "title": "Request approval to send report",
+        "instructions": "Present the exact reportContent to the user for approval before any external delivery. If shouldReport is false, ask the user to confirm no webhook should be sent and record deliveryDecision as 'rejected'. Otherwise, STOP and ask for approval by emitting a StepOutcome questions array that shows the exact webhook content and asks whether to send it. When the answer is available, record variables.deliveryDecision as exactly 'approved' or 'rejected'. Do not post to the webhook in this step.",
+        "expectedOutcome": "The user's approval decision is durably recorded.",
+        "dependsOn": [
+          "compose-report"
+        ],
+        "produces": [
+          "deliveryDecision"
+        ],
+        "gate": "approval",
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      },
+      {
+        "id": "post-webhook-report",
+        "title": "Post approved report to webhook",
+        "instructions": "Only if deliveryDecision is 'approved', POST the exact approved reportContent to the webhook URL from the loop's declared delivery parameters using curl or an equivalent HTTP client. Capture the HTTP response status. Record a delivery receipt in variables.deliveryReceipt with the exact format: 'POST <webhook URL> → <HTTP status>'. Also record any response body or error summary if useful. Do not change the report content after approval.",
+        "expectedOutcome": "The approved report is posted and a receipt with URL plus HTTP status is recorded.",
+        "dependsOn": [
+          "approve-report"
+        ],
+        "produces": [
+          "deliveryReceipt"
+        ],
+        "when": {
+          "var": "deliveryDecision",
+          "in": [
+            "approved"
+          ]
+        },
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      },
+      {
+        "id": "finalize",
+        "title": "Finalise triage run",
+        "instructions": "Confirm the objective is met. If the event was not a non-PR issue labelled 'triage', or the user rejected delivery, emit the completion signal in StepOutcome with completion.status 'blocked' and explain that no webhook was sent. If deliveryDecision was 'approved', verify deliveryReceipt exists and includes the webhook URL plus HTTP status in the required format, then emit the completion signal with completion.status 'complete'. Include a short final summary of the investigation and the delivery receipt when available.",
+        "expectedOutcome": "The loop ends with a clear complete or blocked completion signal and delivery proof when sent.",
+        "dependsOn": [
+          "post-webhook-report"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      }
+    ],
+    "globalInstructions": "Use British English. Treat the run context event payload as the source of the issue number/title/label. Process exactly one issue for this run. Do not wait, poll, or watch for more events. Do not commit changes; this is investigation/reporting only."
+  },
+  "triggers": [
+    {
+      "type": "event",
+      "eventSource": "github:issue-labelled",
+      "eventFilter": {
+        "label": "triage",
+        "isPullRequest": false
+      },
+      "debounceMs": 1000
+    }
+  ],
+  "limits": {
+    "maxAttemptsPerStep": 2,
+    "maxAttemptsTotal": 50,
+    "maxConcurrentSteps": 1,
+    "maxWallClockMs": 1800000
+  },
+  "logPolicy": {
+    "retainRuns": 20,
+    "retainArtifacts": true,
+    "maxInlineOutputBytes": 8000,
+    "retainDigests": 50
+  },
+  "delivery": {
+    "destination": "webhook-post"
+  }
+}

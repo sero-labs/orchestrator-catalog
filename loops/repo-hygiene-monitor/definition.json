@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "prompt": "Whenever files in this project change, review the changed files for hygiene problems: leftover debug output, commented-out code blocks, TODO or FIXME notes without an owner, and source files over 500 lines. Append any new findings to HYGIENE.md with the date. If there is nothing new to report, finish the pass without changing anything.",
+  "title": "Repo hygiene monitor",
+  "summary": "On each filesystem change event, inspect the changed paths from the event payload, identify any new hygiene findings, append new findings to HYGIENE.md with today's date only when needed, then finalise the pass.",
+  "plan": {
+    "schemaVersion": 1,
+    "revision": 0,
+    "objective": "Review the changed files for leftover debug output, commented-out code blocks, TODO/FIXME notes without an owner, and source files over 500 lines; append only new findings to HYGIENE.md with the date, or make no changes if there is nothing new.",
+    "steps": [
+      {
+        "id": "inspect-changed-files",
+        "title": "Inspect changed files for hygiene findings",
+        "instructions": "Read the fs:changed event payload from the run context and inspect only the changed project files that still exist and are relevant source/text files. Check for: leftover debug output such as console.log/console.debug/debugger/print-style diagnostics where inappropriate; commented-out code blocks; TODO or FIXME notes that do not clearly name an owner; and source files over 500 lines. Read existing HYGIENE.md if present so findings already recorded are not reported again. Record the current date to use for any new entries. In the StepOutcome, record variables.newFindings as an array of new finding objects with file path, line or range when available, category, brief description, and date; record an empty array if there is nothing new.",
+        "expectedOutcome": "The changed files have been checked and variables.newFindings accurately lists only new, unrecorded hygiene findings.",
+        "produces": [
+          "newFindings"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "MED",
+          "tools": [
+            "grep",
+            "find"
+          ],
+          "agent": "quality-reviewer"
+        }
+      },
+      {
+        "id": "append-hygiene-findings",
+        "title": "Append new findings to HYGIENE.md if needed",
+        "instructions": "If variables.newFindings is non-empty, append the findings to HYGIENE.md under a clearly dated entry using the date recorded by the inspection step. Preserve any existing content and avoid duplicating existing entries. If variables.newFindings is empty, do not change HYGIENE.md or any other file.",
+        "expectedOutcome": "HYGIENE.md contains a dated entry for any new findings, or the workspace is unchanged when there are no new findings.",
+        "dependsOn": [
+          "inspect-changed-files"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      },
+      {
+        "id": "finalize",
+        "title": "Finalize hygiene review pass",
+        "instructions": "Confirm the objective is met: changed files from this event were reviewed, any new findings were appended to HYGIENE.md with the date, and no file was changed when there were no new findings. Then EMIT THE COMPLETION SIGNAL in the StepOutcome with completion.status \"complete\". If the event payload cannot be read or the objective cannot be met, emit completion.status \"blocked\" with the reason.",
+        "expectedOutcome": "The hygiene review pass is complete or clearly blocked with a reason.",
+        "dependsOn": [
+          "append-hygiene-findings"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      }
+    ],
+    "globalInstructions": "This is a single event-handling pass. Use the fs:changed event payload from the run context for the changed paths; do not watch, poll, or wait for more changes. Respect .gitignore and do not modify files other than HYGIENE.md unless absolutely necessary for reading metadata."
+  },
+  "triggers": [
+    {
+      "type": "event",
+      "eventSource": "fs:changed",
+      "debounceMs": 1000
+    }
+  ],
+  "limits": {
+    "maxAttemptsPerStep": 2,
+    "maxAttemptsTotal": 50,
+    "maxConcurrentSteps": 1,
+    "maxWallClockMs": 1800000
+  },
+  "logPolicy": {
+    "retainRuns": 20,
+    "retainArtifacts": true,
+    "maxInlineOutputBytes": 8000,
+    "retainDigests": 50
+  },
+  "delivery": {
+    "destination": "workspace-files"
+  }
+}

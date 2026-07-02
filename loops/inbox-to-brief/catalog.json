@@ -1,0 +1,13 @@
+{
+  "slug": "inbox-to-brief",
+  "name": "Inbox to brief",
+  "description": "Your morning brief, drafted as an email: new requests summarized, project status from recent changes, anything time-sensitive flagged, and a prioritized to-do list — every morning and whenever a new request file lands.",
+  "version": 1,
+  "requiredTools": ["gmail"],
+  "connectors": ["Gmail (Google plugin)"],
+  "recommendedTrigger": "weekdays 7:30am + fires on fs:changed (requests/)",
+  "delivery": "email-draft",
+  "costBand": "high",
+  "modelTier": "HIGH",
+  "limitations": "Drafts only — nothing is ever sent for you. Needs the Google plugin's gmail tool; without it the brief still lands in the draft step but can't reach your mailbox."
+}

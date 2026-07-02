@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "prompt": "Every weekday at 8am, write a short daily note into notes/daily/ named after today's date. Cover: what changed in the project since the last note (use git history when available, otherwise file timestamps), anything that looks unfinished, and one suggested focus for today. Keep it under 15 lines of plain language.",
+  "title": "Daily note",
+  "summary": "One scheduled run gathers recent project changes, unfinished work signals, and writes today’s short note under notes/daily/. The schedule is handled externally; this plan performs a single pass only.",
+  "plan": {
+    "schemaVersion": 1,
+    "revision": 0,
+    "objective": "Create a short plain-language daily note for today in notes/daily/, named after today’s date, covering project changes since the last note, unfinished work, and one suggested focus, under 15 lines.",
+    "steps": [
+      {
+        "id": "write-daily-note",
+        "title": "Gather context and write today’s note",
+        "instructions": "Determine today’s local date and create/update notes/daily/<YYYY-MM-DD>.md. Inspect existing notes/daily/ to find the most recent previous note. Summarise what changed in the project since that note: prefer git history/log and working tree status; if git history is unavailable or insufficient, use file modification timestamps. Look for unfinished work signals such as TODO/FIXME comments, failing/incomplete files, uncommitted changes, obvious placeholders, or recent WIP commits. Write a plain-language note under 15 lines covering: changes since the last note, anything that looks unfinished, and exactly one suggested focus for today. Ensure the notes/daily/ directory exists. Do not commit.",
+        "expectedOutcome": "A dated daily note exists in notes/daily/ with fewer than 15 lines and the requested content.",
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW",
+          "tools": [
+            "git_manager",
+            "find",
+            "grep"
+          ]
+        }
+      },
+      {
+        "id": "finalize",
+        "title": "Verify note and emit completion",
+        "instructions": "Confirm the objective is met: notes/daily/ contains today’s dated note, it is under 15 lines, plain language, and includes changes since the last note, unfinished items, and one suggested focus. Then EMIT THE COMPLETION SIGNAL in the StepOutcome with completion.status set to \"complete\". If the note cannot be created or verified, emit completion.status \"blocked\" with the reason.",
+        "expectedOutcome": "The run is marked complete, or blocked with a clear reason.",
+        "dependsOn": [
+          "write-daily-note"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW",
+          "tools": [
+            "find"
+          ]
+        }
+      }
+    ],
+    "globalInstructions": "This is one scheduled iteration only. Do not wait, repeat, poll, create reminders, commit, or open a PR. Use British English. Leave the created/updated note in the working tree."
+  },
+  "triggers": [
+    {
+      "type": "cron",
+      "schedule": "0 8 * * 1-5"
+    }
+  ],
+  "limits": {
+    "maxAttemptsPerStep": 2,
+    "maxAttemptsTotal": 50,
+    "maxConcurrentSteps": 1,
+    "maxWallClockMs": 1800000
+  },
+  "logPolicy": {
+    "retainRuns": 20,
+    "retainArtifacts": true,
+    "maxInlineOutputBytes": 8000,
+    "retainDigests": 50
+  },
+  "delivery": {
+    "destination": "workspace-files"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "slug": "ci-fixer",
+  "name": "CI fixer",
+  "description": "When CI fails on your repository, it reads the failure logs, makes the smallest fix that addresses the cause, re-runs the failed checks, and opens a pull request — one failed run per pass, always behind PR review.",
+  "version": 1,
+  "connectors": ["GitHub (gh login)"],
+  "recommendedTrigger": "fires on github:ci-failed",
+  "delivery": "pr",
+  "costBand": "high",
+  "modelTier": "MED",
+  "limitations": "Needs the gh CLI signed in and a repository with CI on GitHub. Fixes land as pull requests for your review — it never pushes to your default branch."
+}

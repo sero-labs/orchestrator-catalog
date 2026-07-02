@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "prompt": "Whenever a CI run fails in this repository, investigate that failed run: read the failure logs, find the cause, make the smallest fix that addresses it, and verify the fix by running the checks that failed. Open a pull request with the fix.",
+  "title": "CI fixer",
+  "summary": "Handle one github:ci-failed event: avoid duplicating existing open PRs, inspect the failed run logs, make the smallest targeted fix, rerun the failed checks, open a pull request, then finalise with the PR URL receipt.",
+  "plan": {
+    "schemaVersion": 1,
+    "revision": 0,
+    "objective": "Investigate one failed CI run for this repository, identify the cause, make the smallest fix, verify by rerunning the failed checks, and open a pull request with the fix.",
+    "steps": [
+      {
+        "id": "check-existing-prs",
+        "title": "Check whether an open PR already covers this CI failure",
+        "instructions": "Review the run context, especially any listed open pull requests, plus the failed CI event details. If an open PR already appears to address the same failed workflow/SHA/branch or the same root cause, do not make changes. Record variables.route exactly as either \"skip\" or \"fix\". Use \"skip\" only when an existing open PR clearly covers this failure; otherwise use \"fix\".",
+        "expectedOutcome": "A routing decision is recorded to either skip duplicate work or proceed with investigation and fix.",
+        "produces": [
+          "route"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      },
+      {
+        "id": "investigate-ci-failure",
+        "title": "Read CI logs and identify the failure cause",
+        "instructions": "For the failed CI event in the run context, inspect the repository state and retrieve the relevant CI failure logs. Prefer `gh run view` / `gh run download` or equivalent GitHub CLI commands if available; use the workflow, branch, SHA, and event details to find the exact failed run. Determine which checks/jobs failed, the command(s) that failed, and the likely root cause. Record enough detail in the StepOutcome for later steps, including the failed check commands to rerun locally if discoverable.",
+        "expectedOutcome": "The failed CI job, failing command(s), and likely root cause are identified.",
+        "dependsOn": [
+          "check-existing-prs"
+        ],
+        "when": {
+          "var": "route",
+          "in": [
+            "fix"
+          ]
+        },
+        "execution": {
+          "type": "background-agent",
+          "model": "MED",
+          "tools": [
+            "git_manager"
+          ]
+        }
+      },
+      {
+        "id": "implement-smallest-fix",
+        "title": "Make the smallest targeted fix",
+        "instructions": "Implement the smallest code, test, configuration, or dependency change that directly addresses the identified CI failure. Avoid unrelated refactors or broad formatting changes. If the failure is environmental or cannot be fixed from the repository, leave the workspace unchanged and explain the blocker in the StepOutcome.",
+        "expectedOutcome": "A minimal repository change addresses the identified CI failure, or a clear blocker is recorded.",
+        "dependsOn": [
+          "investigate-ci-failure"
+        ],
+        "when": {
+          "var": "route",
+          "in": [
+            "fix"
+          ]
+        },
+        "execution": {
+          "type": "background-agent",
+          "model": "MED",
+          "agent": "implementer"
+        }
+      },
+      {
+        "id": "verify-fix",
+        "title": "Rerun the failed checks",
+        "instructions": "Run the checks that failed in CI, using the exact failed commands identified earlier where possible. If exact commands are unavailable, run the closest relevant local test/lint/build command for the failed workflow. Fix any issues caused by the change and rerun until the targeted checks pass or a genuine external blocker is reached. Record the commands run and their results.",
+        "expectedOutcome": "The failed checks now pass locally, or a blocker with evidence is recorded.",
+        "dependsOn": [
+          "implement-smallest-fix"
+        ],
+        "when": {
+          "var": "route",
+          "in": [
+            "fix"
+          ]
+        },
+        "execution": {
+          "type": "background-agent",
+          "model": "MED"
+        }
+      },
+      {
+        "id": "commit-and-open-pr",
+        "title": "Commit, push, and open a pull request",
+        "instructions": "Inspect the git diff and status. If verification passed and there are changes, commit them on the current branch with a clear message. If the repository has a git remote and the `gh` CLI is available, push the current branch and open a pull request describing the CI failure, root cause, fix, and verification commands/results. Record the opened pull request URL exactly in StepOutcome receipt.ref. If a PR cannot be opened because remote/gh/auth is unavailable, record a blocker and include the commit hash and reason.",
+        "expectedOutcome": "A committed fix is pushed and a pull request is opened, with receipt.ref set to the PR URL.",
+        "dependsOn": [
+          "verify-fix"
+        ],
+        "when": {
+          "var": "route",
+          "in": [
+            "fix"
+          ]
+        },
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW",
+          "tools": [
+            "git_manager"
+          ]
+        }
+      },
+      {
+        "id": "record-skip-receipt",
+        "title": "Record duplicate-work skip result",
+        "instructions": "Because an existing open PR already covers this failed CI run, make no repository changes. Record a receipt explaining which PR appears to cover the failure. If the existing PR URL is known, record it in StepOutcome receipt.ref; otherwise record receipt.ref as \"skipped-existing-pr\" and include the PR number/title in the summary.",
+        "expectedOutcome": "Duplicate work is skipped with a clear receipt.",
+        "dependsOn": [
+          "check-existing-prs"
+        ],
+        "when": {
+          "var": "route",
+          "in": [
+            "skip"
+          ]
+        },
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      },
+      {
+        "id": "finalize",
+        "title": "Finalise the run",
+        "instructions": "Confirm the objective is met: either a pull request was opened for the CI fix with receipt.ref equal to the PR URL, or work was correctly skipped because an open PR already covers it, or the run is blocked with a clear reason. EMIT THE COMPLETION SIGNAL in the StepOutcome: completion.status \"complete\" when delivered or skipped as duplicate, or \"blocked\" if the objective cannot be met. Include the delivery receipt, especially receipt.ref from the PR-opening step when a PR was opened.",
+        "expectedOutcome": "The run is completed or blocked with an explicit completion signal and delivery receipt.",
+        "dependsOn": [
+          "commit-and-open-pr",
+          "record-skip-receipt"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      }
+    ],
+    "globalInstructions": "This is a single event-driven pass for one CI failure. Use the run context to identify the failed workflow, branch, SHA, and any open pull requests. Work only in the managed worktree/current branch; do not switch branches. Keep changes minimal and commit them before delivery."
+  },
+  "triggers": [
+    {
+      "type": "event",
+      "eventSource": "github:ci-failed",
+      "eventFilter": {
+        "conclusion": "failure"
+      }
+    }
+  ],
+  "limits": {
+    "maxAttemptsPerStep": 2,
+    "maxAttemptsTotal": 50,
+    "maxConcurrentSteps": 1,
+    "maxWallClockMs": 1800000
+  },
+  "logPolicy": {
+    "retainRuns": 20,
+    "retainArtifacts": true,
+    "maxInlineOutputBytes": 8000,
+    "retainDigests": 50
+  },
+  "delivery": {
+    "destination": "pr"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "slug": "daily-note",
+  "name": "Daily note",
+  "description": "Every weekday morning, writes a short note into your project: what changed yesterday, what looks unfinished, and one suggested focus for today.",
+  "version": 1,
+  "recommendedTrigger": "weekdays at 8am",
+  "delivery": "workspace-files",
+  "costBand": "low",
+  "modelTier": "LOW",
+  "limitations": "Reads only what's in the workspace — it won't know about work that lives elsewhere."
+}

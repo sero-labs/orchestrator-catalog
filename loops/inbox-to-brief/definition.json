@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "prompt": "Every morning at 7:30, and also whenever a new file appears in the requests folder of this project, assemble a morning brief: summarize any new requests, report project status from recent changes, list anything time-sensitive, and finish with a prioritized to-do list for today. Draft the brief as an email for my review.",
+  "title": "Inbox to brief",
+  "summary": "One pass gathers new request files, recent project changes, time-sensitive items, and today’s priorities, then creates a Gmail draft for review and finalises with the draft receipt.",
+  "plan": {
+    "schemaVersion": 1,
+    "revision": 0,
+    "objective": "Assemble a morning brief for the project and create it as a Gmail draft for user review.",
+    "steps": [
+      {
+        "id": "gather-brief-inputs",
+        "title": "Gather requests and project status",
+        "instructions": "Inspect the run context to see whether this run was triggered by the 7:30 schedule or by an fs:changed event. Inspect the project's requests folder and summarise any new or recently changed request files, prioritising the specific paths from the event payload when present. Check recent project changes using git status, recent commits, and relevant diffs/logs. Look for time-sensitive items such as dates, deadlines, urgent wording, TODOs, blockers, or reminders in requests and recent changes. Record a concise structured summary in StepOutcome variables, including: requestSummaries, projectStatus, timeSensitiveItems, and suggestedTodoList.",
+        "expectedOutcome": "The necessary facts for the brief are collected and recorded as structured variables.",
+        "produces": [
+          "requestSummaries",
+          "projectStatus",
+          "timeSensitiveItems",
+          "suggestedTodoList"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "MED",
+          "tools": [
+            "find",
+            "grep",
+            "git_manager",
+            "current_time"
+          ]
+        }
+      },
+      {
+        "id": "create-gmail-draft",
+        "title": "Create Gmail draft",
+        "instructions": "Compose a clear email draft for the user's review. The subject should be suitable for a morning project brief and include today's date if available. The body must include: a short opening, summaries of any new requests, project status from recent changes, time-sensitive items, and a prioritised to-do list for today. If a section has nothing to report, say so briefly. Create the message as a Gmail DRAFT using the gmail tool, honouring any recipients or subject from the declared delivery params if provided. Do not send the email. Record the Gmail draft id exactly in StepOutcome delivery.receipt.ref and also mention it in the outcome summary.",
+        "expectedOutcome": "A Gmail draft exists and its draft id is recorded as the delivery receipt ref.",
+        "dependsOn": [
+          "gather-brief-inputs"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "MED",
+          "tools": [
+            "gmail"
+          ]
+        }
+      },
+      {
+        "id": "finalize",
+        "title": "Finalise run",
+        "instructions": "Confirm the morning brief objective is met: the brief was assembled and a Gmail draft was created for review. Verify the delivery receipt includes the Gmail draft id as delivery.receipt.ref from the prior step. Then EMIT THE COMPLETION SIGNAL in this StepOutcome with completion.status set to \"complete\". If the objective could not be met, emit completion.status \"blocked\" and explain the blocker.",
+        "expectedOutcome": "The run is marked complete or blocked with a clear reason.",
+        "dependsOn": [
+          "create-gmail-draft"
+        ],
+        "execution": {
+          "type": "background-agent",
+          "model": "LOW"
+        }
+      }
+    ],
+    "globalInstructions": "This is one run only. Do not wait, poll, watch folders, or repeat. Use British English. Do not send email; create a Gmail draft only."
+  },
+  "triggers": [
+    {
+      "type": "hybrid",
+      "schedule": "30 7 * * *",
+      "eventSource": "fs:changed",
+      "eventCondition": "only when a new file appears under the requests folder",
+      "debounceMs": 30000
+    }
+  ],
+  "limits": {
+    "maxAttemptsPerStep": 2,
+    "maxAttemptsTotal": 50,
+    "maxConcurrentSteps": 1,
+    "maxWallClockMs": 1800000
+  },
+  "logPolicy": {
+    "retainRuns": 20,
+    "retainArtifacts": true,
+    "maxInlineOutputBytes": 8000,
+    "retainDigests": 50
+  },
+  "contextOverrides": {
+    "systemPrompt": "Write briefs in crisp bullet points. Lead with whatever needs a decision today. Never exceed 200 words."
+  },
+  "delivery": {
+    "destination": "email-draft"
+  }
+}

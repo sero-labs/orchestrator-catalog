@@ -1,0 +1,11 @@
+{
+  "slug": "weekly-research-digest",
+  "name": "Weekly research digest",
+  "description": "Every Monday, works out what your project is built on, researches what changed in that space over the past week, and saves a digest of the three items that matter most.",
+  "version": 1,
+  "recommendedTrigger": "Mondays at 9am",
+  "delivery": "saved-artifact",
+  "costBand": "medium",
+  "modelTier": "MED",
+  "limitations": "Research quality depends on web access from the agent's tool surface; without it the digest falls back to what the workspace itself reveals."
+}
