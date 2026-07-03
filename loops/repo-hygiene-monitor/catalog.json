@@ -3,9 +3,9 @@
   "name": "Repo hygiene monitor",
   "description": "Watches your project for file changes and quietly logs hygiene problems — leftover debug output, commented-out blocks, ownerless TODOs, oversized files — into HYGIENE.md. Stays silent when everything is clean.",
   "version": 1,
-  "recommendedTrigger": "fires on fs:changed",
+  "recommendedTrigger": "fires on fs:changed (at most once per 15 min of activity)",
   "delivery": "workspace-files",
   "costBand": "low",
   "modelTier": "LOW",
-  "limitations": "Judgement-based review of changed files, not a linter replacement — pair it with your normal lint/CI rules."
+  "limitations": "Judgement-based review of changed files, not a linter replacement — pair it with your normal lint/CI rules. Runs at most about once per 15 minutes of file activity; changes saved during that quiet window are picked up with the next batch."
 }

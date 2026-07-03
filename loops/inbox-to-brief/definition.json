@@ -68,7 +68,7 @@
       "schedule": "30 7 * * *",
       "eventSource": "fs:changed",
       "eventCondition": "only when a new file appears under the requests folder",
-      "debounceMs": 30000
+      "debounceMs": 600000
     }
   ],
   "limits": {

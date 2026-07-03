@@ -59,7 +59,8 @@
     {
       "type": "event",
       "eventSource": "fs:changed",
-      "debounceMs": 1000
+      "debounceMs": 900000,
+      "eventCondition": "skip when the only changed files are HYGIENE.md or the loop’s own outputs; otherwise proceed"
     }
   ],
   "limits": {
